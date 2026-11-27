@@ -1,22 +1,28 @@
+import { useState } from 'react';
 import BrandMark from './BrandMark.jsx';
+import { navigation, pages } from '../sitePages.js';
 
-export default function Header({ settings }) {
+export default function Header({ settings, path }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  function closeOnEscape(event) {
+    if (menuOpen && event.key === 'Escape') {
+      setMenuOpen(false);
+      event.currentTarget.querySelector('.menu-toggle').focus();
+    }
+  }
+
   return (
-    <header className="nav" id="nav" data-testid="site-header">
-      <div className="wrap nav-in">
-        <a href="#top" className="brand" aria-label={settings.name + " home"} data-testid="nav-logo">
-          <BrandMark settings={settings} />
-        </a>
-        <nav aria-label="Primary">
-          <ul className="nav-links">
-            <li><a href="#services" data-testid="nav-link-services">Services</a></li>
-            <li><a href="#about" data-testid="nav-link-about">About</a></li>
-            <li><a href="#work" data-testid="nav-link-work">Work</a></li>
-            <li><a href="#testimonials" data-testid="nav-link-testimonials">Clients</a></li>
-          </ul>
+    <header className="site-header" onKeyDown={closeOnEscape} data-testid="site-header">
+      <div className="wrap header-inner">
+        <a href="/" className="brand" aria-label={settings.name + ' home'}><BrandMark settings={settings} /></a>
+        <button className="menu-toggle" type="button" aria-controls="site-nav" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
+          {menuOpen ? 'Close' : 'Menu'}
+        </button>
+        <nav id="site-nav" aria-label="Main navigation" className={menuOpen ? 'site-nav is-open' : 'site-nav'}>
+          {navigation.map(href => <a key={href} href={href} aria-current={path === href ? 'page' : undefined}>{pages[href].label}</a>)}
         </nav>
-        <a href="#contact" className="btn btn-primary nav-cta" data-testid="nav-cta-button">Free consultation</a>
-        <button className="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mmenu" data-testid="mobile-menu-toggle"><span></span><span></span></button>
+        <a href="/contact#lead-form" className="btn btn-dark header-cta">Start a project</a>
       </div>
     </header>
   );

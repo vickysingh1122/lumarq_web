@@ -1,53 +1,57 @@
-﻿import { useEffect, useLayoutEffect, useState } from 'react';
-import initial from './initialContent.json';
-import './site.css';
-import About from './components/About.jsx';
-import Contact from './components/Contact.jsx';
-import Footer from './components/Footer.jsx';
+import { useEffect, useRef, useState } from 'react';
+import { getPublicContent } from './publicContent.js';
+import { notFound, pages } from './sitePages.js';
 import Header from './components/Header.jsx';
-import Hero from './components/Hero.jsx';
-import Marquee from './components/Marquee.jsx';
-import MobileMenu from './components/MobileMenu.jsx';
-import Portfolio from './components/Portfolio.jsx';
-import Services from './components/Services.jsx';
-import Testimonials from './components/Testimonials.jsx';
-import { startSiteEffects } from './siteEffects.js';
+import Footer from './components/Footer.jsx';
+import { CompanyPage, ContactPage, HomePage, NotFoundPage, PrivacyPage, ServicesPage, WorkPage } from './components/MarketingPages.jsx';
+import './site.css';
+
+const views = {
+  '/': HomePage,
+  '/services': ServicesPage,
+  '/work': WorkPage,
+  '/about': CompanyPage,
+  '/contact': ContactPage,
+  '/privacy': PrivacyPage,
+};
 
 export default function App() {
-  const [content, setContent] = useState();
+  const [content, setContent] = useState(null);
+  const scrolledToFragment = useRef(false);
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  const View = views[path] ?? NotFoundPage;
+  const metadata = pages[path] ?? notFound;
+
   useEffect(() => {
+    document.title = metadata.title;
+    document.querySelector('meta[name="description"]')?.setAttribute('content', metadata.description);
     const controller = new AbortController();
     fetch('/api/content', { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]) })
       .then(response => response.ok ? response.json() : null)
-      .then(setContent)
-      .catch(() => { if (!controller.signal.aborted) setContent(null); });
+      .then(data => { if (!controller.signal.aborted) setContent(data); })
+      .catch(() => {
+        // The public site can still render with the bundled content.
+      });
     return () => controller.abort();
-  }, []);
+  }, [metadata]);
 
-  useLayoutEffect(() => {
-    if (content !== undefined) return startSiteEffects();
+  useEffect(() => {
+    if (scrolledToFragment.current) return;
+    const target = document.getElementById(window.location.hash.slice(1));
+    if (target) {
+      scrolledToFragment.current = true;
+      target.scrollIntoView();
+    }
   }, [content]);
 
-  const { services, works, clients } = content || initial;
-  const about = { ...initial.about, ...content?.about };
-  const settings = { ...initial.settings, ...content?.settings };
+  const publicContent = getPublicContent(content);
 
   return (
     <>
       <a className="skip" href="#main">Skip to content</a>
-      <div className="grain" aria-hidden="true" />
-      <Header settings={settings} />
-      <MobileMenu />
-      <main id="main">
-        <Hero settings={settings} />
-        <Marquee />
-        <Services services={services} settings={settings} />
-        <About about={about} />
-        <Portfolio works={works} settings={settings} />
-        <Testimonials clients={clients} settings={settings} />
-        <Contact settings={settings} services={services} />
-      </main>
-      <Footer settings={settings} />
+      <Header settings={publicContent.settings} path={path} />
+      <main id="main" tabIndex={-1}><View {...publicContent} /></main>
+      <Footer settings={publicContent.settings} />
     </>
   );
 }
