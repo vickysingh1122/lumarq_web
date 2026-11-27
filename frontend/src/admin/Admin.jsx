@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { modules } from '../contentCatalog.js';
 import { adminRequest } from './api.js';
 import { DataTable, SingleContent } from './DataTable.jsx';
@@ -6,6 +6,22 @@ import Profile from './Profile.jsx';
 import './admin.css';
 
 const menu = ['consultations', 'services', 'about', 'works', 'clients', 'settings', 'profile'];
+const icons = {
+  consultations: 'M4 4h16v12H9l-5 4V4Zm4 4h8m-8 4h5',
+  services: 'M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z',
+  about: 'M4 20V8l8-4 8 4v12H4Zm5 0v-5h6v5m-6-9h.01m6 0h.01',
+  works: 'M3 8h18v12H3zm5 0V4h8v4M3 12h18m-11 0v2h4v-2',
+  clients: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-4m-6-6a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm6 0a4 4 0 0 1-2 3.5',
+  settings: 'M4 7h16M4 12h16M4 17h16M8 5v4m8 1v4m-6 1v4',
+  profile: 'M20 20a8 8 0 0 0-16 0m12-11a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
+};
+
+function AdminBrand() {
+  return <div className="admin-brand">
+    <span className="admin-mark" aria-hidden="true"><i /><i /><i /></span>
+    <span>Lumarq Digital<small>Admin workspace</small></span>
+  </div>;
+}
 
 function activeModule() {
   const value = window.location.hash.slice(1);
@@ -33,8 +49,9 @@ function Login({ onSignIn, initialError, notice }) {
   return (
     <main className="admin-login">
       <div className="admin-login-card">
-        <span className="admin-brand">Lumarq Digital</span>
+        <AdminBrand />
         <h1>Admin sign in</h1>
+        <p className="admin-login-intro">Manage project enquiries and website content.</p>
         {notice && <p role="status" className="admin-feedback">{notice}</p>}
         <form onSubmit={submit} className="admin-login-form">
           <div className="admin-field"><label htmlFor="admin-email">Email</label>
@@ -55,6 +72,8 @@ export default function Admin() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState('');
   const [resource, setResource] = useState(activeModule);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef(null);
   const onExpired = useCallback(() => { setError('Your session expired. Sign in again.'); setAccount(null); }, []);
 
   useEffect(() => {
@@ -69,7 +88,7 @@ export default function Admin() {
   }, []);
 
   useEffect(() => {
-    const onChange = () => { setResource(activeModule()); setError(''); };
+    const onChange = () => { setResource(activeModule()); setError(''); setMenuOpen(false); };
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
   }, []);
@@ -97,24 +116,62 @@ export default function Admin() {
   if (account === undefined) return <main className="admin-loading" aria-busy="true">Checking session…</main>;
   if (!account) return <Login onSignIn={value => { setAccount(value); setError(''); setNotice(''); }} initialError={error} notice={notice} />;
 
+  const accountName = account.displayName || account.email;
+  const currentTitle = resource === 'profile' ? 'Profile' : modules[resource].title;
   return (
     <div className="admin-shell">
-      <aside className="admin-sidebar">
-        <div className="admin-brand">Lumarq Digital</div>
-        <nav aria-label="Admin modules">
-          {menu.map(item => (
-            <a key={item} href={'#' + item} aria-current={item === resource ? 'page' : undefined}>{item === 'profile' ? 'Profile' : modules[item].title}</a>
-          ))}
-        </nav>
-        <a className="admin-site-link" href="/">View website</a>
+      <a className="admin-skip" href="#admin-main" onClick={event => {
+        event.preventDefault();
+        document.getElementById('admin-main').focus();
+      }}>Skip to content</a>
+      <aside className="admin-sidebar" onKeyDown={event => {
+        if (event.key === 'Escape' && menuOpen) {
+          setMenuOpen(false);
+          menuButton.current.focus();
+        }
+      }}>
+        <div className="admin-sidebar-heading">
+          <AdminBrand />
+          <button ref={menuButton} className="admin-menu-toggle" type="button" aria-controls="admin-sidebar-links"
+            aria-expanded={menuOpen} onClick={() => setMenuOpen(open => !open)}>
+            {menuOpen ? 'Close menu' : 'Menu'}
+          </button>
+        </div>
+        <div id="admin-sidebar-links" className={menuOpen ? 'admin-sidebar-links is-open' : 'admin-sidebar-links'}>
+          <nav aria-label="Admin modules">
+            {menu.map(item => (
+              <a key={item} href={'#' + item} aria-current={item === resource ? 'page' : undefined} onClick={() => {
+                if (menuOpen) {
+                  setMenuOpen(false);
+                  requestAnimationFrame(() => document.getElementById('admin-main')?.focus());
+                }
+              }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={icons[item]} /></svg>
+                {item === 'profile' ? 'Profile' : modules[item].title}
+              </a>
+            ))}
+          </nav>
+          <a className="admin-site-link" href="/">View website</a>
+        </div>
       </aside>
-      <main className="admin-main">
-        <div className="admin-account"><span>{account.displayName || account.email}</span><button className="admin-secondary" onClick={signOut}>Sign out</button></div>
-        {error && <p role="alert" className="admin-error">{error}</p>}
-        {resource === 'profile' ? <Profile account={account} onSaved={accountSaved} onExpired={onExpired} />
-          : modules[resource].single
-          ? <SingleContent key={resource} resource={resource} onExpired={onExpired} />
-          : <DataTable key={resource} resource={resource} onExpired={onExpired} />}
+      <main className="admin-main" id="admin-main" tabIndex={-1}>
+        <header className="admin-topbar">
+          <span className="admin-location">Workspace <span aria-hidden="true">/</span> <strong>{currentTitle}</strong></span>
+          <div className="admin-account">
+            <a href="#profile" className="admin-account-link" aria-label={'Profile for ' + accountName}>
+              <span className="admin-avatar" aria-hidden="true">{accountName.trim().charAt(0).toUpperCase()}</span>
+              <span>{accountName}</span>
+            </a>
+            <button type="button" className="admin-secondary" onClick={signOut}>Sign out</button>
+          </div>
+        </header>
+        <div className="admin-content">
+          {error && <p role="alert" className="admin-error">{error}</p>}
+          {resource === 'profile' ? <Profile account={account} onSaved={accountSaved} onExpired={onExpired} />
+            : modules[resource].single
+            ? <SingleContent key={resource} resource={resource} onExpired={onExpired} />
+            : <DataTable key={resource} resource={resource} onExpired={onExpired} />}
+        </div>
       </main>
     </div>
   );

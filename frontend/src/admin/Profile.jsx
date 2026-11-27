@@ -66,7 +66,7 @@ function AccountForm({ changePassword = false, account, onSaved, onExpired }) {
 export default function Profile({ account, onSaved, onExpired }) {
   return (
     <>
-      <h1 className="admin-section-title">Profile</h1>
+      <div className="admin-section-title"><div><h1>Profile</h1><p>Manage your display name, sign-in email and password.</p></div></div>
       <div className="admin-profile">
         <AccountForm account={account} onSaved={onSaved} onExpired={onExpired} />
         <AccountForm changePassword account={account} onSaved={onSaved} onExpired={onExpired} />
